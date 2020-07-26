@@ -3,19 +3,24 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	//"golang.org/x/oauth2"
+	"log"
+	"os"
+
 	"github.com/gosimple/oauth2"
 	"io/ioutil"
 	"net/http"
 )
 
-var service = oauth2.Service(
-	"ac3048ae7984fc888620",
-	"c2329a72c1e0e76a2ea8e8fb63662eba1f9136aa",
-	"https://github.com/login/oauth/authorize",
-	"https://github.com/login/oauth/access_token",
-)
+var service *oauth2.OAuth2Service
 var repoDatas = []repoInfo{}
+
+type configDefinition struct {
+	ClientID     string `json:"client_id"`
+	ClientSecret string `json:"client_secret"`
+	CallbackURL  string `json:"callback_url"`
+}
+
+var config configDefinition
 
 type userInfo struct {
 	Name     string `json:"Name"`
@@ -25,61 +30,67 @@ type userInfo struct {
 
 type repoInfo struct {
 	CloneURL string `json:"clone_url"`
-	Name	string `json:"name"`
+	Name     string `json:"name"`
 }
 
 func loadLogin(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("Got Request")
+	log.Println("Loading github login page")
 
 	// Set custom redirect
-	service.RedirectURL = "http://127.0.0.1:80/github_callback"
+	//service.RedirectURL = "http://127.0.0.1:80/github_callback"
+	service.RedirectURL = config.CallbackURL
 
 	// Get authorization url.
 	authUrl := service.GetAuthorizeURL("")
-	fmt.Println("AuthURL is ", authUrl)
+	//fmt.Println("AuthURL is ", authUrl)
 	http.Redirect(w, r, authUrl, 301)
-	// Send user to authUrl and get code
 }
 
 func github_callback(w http.ResponseWriter, r *http.Request) {
-	//fmt.Println("Callback")
-	//fmt.Fprintf(w, "Got Callback")
+
 	codes := r.URL.Query()["code"]
 	code := codes[0]
+	if code == "" {
+		log.Println("Invalid Code")
+		return
+	}
 	// Get access token.
-	//fmt.Println("Code is ", code)
 	token, err := service.GetAccessToken(code)
 	if err != nil {
 		fmt.Println("Get access token error: ", err)
 		return
 	}
-	//fmt.Println("Token ", token)
+
 	// Prepare resource request
 	apiBaseURL := "https://api.github.com/"
-	//fmt.Println("making request with token ", token)
+
 	github := oauth2.Request(apiBaseURL, token.AccessToken)
 	github.AccessTokenInHeader = true
 	github.AccessTokenInHeaderScheme = "token"
 	//github.AccessTokenInURL = true
 
-	// Make the request.
-	// Provide API end point (http://developer.github.com/v3/users/#get-the-authenticated-user)
+	// Get User Info
 	apiEndPoint := "user"
 	githubUserData, err := github.Get(apiEndPoint)
 	if err != nil {
-		fmt.Println("Get: ", err)
+		log.Println("Get: ", err)
 		return
 	}
+	defer githubUserData.Body.Close()
 
 	body, err := ioutil.ReadAll(githubUserData.Body)
 	if err != nil {
-		fmt.Println("Error reading response")
+		log.Println("Error reading response")
 		return
 	}
-	//fmt.Fprintf(w, string(body))
+
 	//fmt.Println("####", string(body))
 	response := userInfo{}
-	json.Unmarshal(body, &response)
+	err = json.Unmarshal(body, &response)
+	if err != nil {
+		log.Println("Failed to unmarshal user info")
+		return
+	}
 	//fmt.Println("*** ", response.Login)
 	endpoint := "users/" + response.Login + "/repos"
 
@@ -88,6 +99,7 @@ func github_callback(w http.ResponseWriter, r *http.Request) {
 		fmt.Println("Error reading response")
 		return
 	}
+	defer repoData.Body.Close()
 
 	body, err = ioutil.ReadAll(repoData.Body)
 	if err != nil {
@@ -96,20 +108,16 @@ func github_callback(w http.ResponseWriter, r *http.Request) {
 	}
 	//fmt.Println(string(body))
 
-	json.Unmarshal(body, &repoDatas)
+	err = json.Unmarshal(body, &repoDatas)
+	if err != nil{
+		log.Println("Failed to unmarshal Repo Info")
+	}
 
-	//fmt.Println(repoDatas[0].CloneURL, repoDatas[0].Name)
-	//cmd := exec.Command("git", "clone", repoDatas[0].CloneURL)
-	//err = cmd.Run()
-	//if err != nil {
-	//	// something went wrong
-	//}
-	//fmt.Println("data: ", string(body))
-	http.Redirect(w,r,"/display_repos", 301)
-	defer githubUserData.Body.Close()
+	http.Redirect(w, r, "/display_repos", 301)
+
 }
 
-func homePage(w http.ResponseWriter, r *http.Request){
+func homePage(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "This is github cloning project")
 }
 
@@ -119,8 +127,25 @@ func main() {
 	http.HandleFunc("/home", homePage)
 	http.HandleFunc("/connect_github", loadLogin)
 	http.HandleFunc("/github_callback", github_callback)
-	http.HandleFunc("/display_repos", DisplayRadioButtons)
+	http.HandleFunc("/display_repos", DisplayRepos)
 	http.HandleFunc("/selected", UserSelected)
+
+	file, err := os.Open("config.json")
+	if err != nil {
+		log.Fatal("Unable to find config file")
+	}
+	decoder := json.NewDecoder(file)
+	err = decoder.Decode(&config)
+	if err != nil {
+		log.Fatal("Config file not in required format")
+	}
+
+	service = oauth2.Service(
+		config.ClientID,
+		config.ClientSecret,
+		"https://github.com/login/oauth/authorize",
+		"https://github.com/login/oauth/access_token",
+	)
 	errs := make(chan error)
 	go func() {
 		errs <- http.ListenAndServe(":80", nil)

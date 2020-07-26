@@ -22,27 +22,27 @@ type PageVariables struct {
 	Answer           string
 }
 
-func DisplayConnectGithub(w http.ResponseWriter, r *http.Request){
+func DisplayConnectGithub(w http.ResponseWriter, r *http.Request) {
 	Title := "Select Below button to connect github"
 	MyRadioButtons := []RadioButton{
-			RadioButton{"ConnectGithub", "connect_github", false, false, "Connect Github"},
-		}
+		RadioButton{"ConnectGithub", "connect_github", false, false, "Connect Github"},
+	}
 	MyPageVariables := PageVariables{
-		PageTitle: Title,
-		PageRadioButtons : MyRadioButtons,
+		PageTitle:        Title,
+		PageRadioButtons: MyRadioButtons,
 	}
 	t, err := template.ParseFiles("home.html") //parse the html file homepage.html
-	if err != nil { // if there is an error
+	if err != nil {                            // if there is an error
 		log.Print("template parsing error: ", err) // log it
 	}
 
 	err = t.Execute(w, MyPageVariables) //execute the template and pass it the HomePageVars struct to fill in the gaps
-	if err != nil { // if there is an error
+	if err != nil {                     // if there is an error
 		log.Print("template executing error: ", err) //log it
 	}
 }
 
-func DisplayRadioButtons(w http.ResponseWriter, r *http.Request){
+func DisplayRepos(w http.ResponseWriter, r *http.Request) {
 	// Display some radio buttons to the user
 
 	Title := "Which Repo to Clone?"
@@ -64,23 +64,23 @@ func DisplayRadioButtons(w http.ResponseWriter, r *http.Request){
 	//}
 
 	MyPageVariables := PageVariables{
-		PageTitle: Title,
-		PageRadioButtons : MyRadioButtons,
+		PageTitle:        Title,
+		PageRadioButtons: MyRadioButtons,
 	}
 
 	t, err := template.ParseFiles("select.html") //parse the html file homepage.html
-	if err != nil { // if there is an error
+	if err != nil {                              // if there is an error
 		log.Print("template parsing error: ", err) // log it
 	}
 
 	err = t.Execute(w, MyPageVariables) //execute the template and pass it the HomePageVars struct to fill in the gaps
-	if err != nil { // if there is an error
+	if err != nil {                     // if there is an error
 		log.Print("template executing error: ", err) //log it
 	}
 
 }
 
-func UserSelected(w http.ResponseWriter, r *http.Request){
+func UserSelected(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("UserSelected animal")
 	r.ParseForm()
 	// r.Form is now either
@@ -92,12 +92,12 @@ func UserSelected(w http.ResponseWriter, r *http.Request){
 	Title := "Your preferred Repo Name"
 	MyPageVariables := PageVariables{
 		PageTitle: Title,
-		Answer :   selectedRepoName,
+		Answer:    selectedRepoName,
 	}
 
 	var cloneURL string
-	for _,v := range(repoDatas){
-		if selectedRepoName == v.Name{
+	for _, v := range repoDatas {
+		if selectedRepoName == v.Name {
 			cloneURL = v.CloneURL
 		}
 	}
@@ -109,12 +109,12 @@ func UserSelected(w http.ResponseWriter, r *http.Request){
 	}
 	// generate page by passing page variables into template
 	t, err := template.ParseFiles("select.html") //parse the html file homepage.html
-	if err != nil { // if there is an error
+	if err != nil {                              // if there is an error
 		log.Print("template parsing error: ", err) // log it
 	}
 
 	err = t.Execute(w, MyPageVariables) //execute the template and pass it the HomePageVars struct to fill in the gaps
-	if err != nil { // if there is an error
+	if err != nil {                     // if there is an error
 		log.Print("template executing error: ", err) //log it
 	}
 }
