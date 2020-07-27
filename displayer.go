@@ -58,10 +58,6 @@ func DisplayRepos(w http.ResponseWriter, r *http.Request) {
 		}
 		MyRadioButtons = append(MyRadioButtons, rb)
 	}
-	//MyRadioButtons := []RadioButton{
-	//	RadioButton{"animalselect", "cats", false, false, "Cats"},
-	//	RadioButton{"animalselect", "dogs", false, false, "Dogs"},
-	//}
 
 	MyPageVariables := PageVariables{
 		PageTitle:        Title,
@@ -81,15 +77,12 @@ func DisplayRepos(w http.ResponseWriter, r *http.Request) {
 }
 
 func UserSelected(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("UserSelected animal")
+	log.Println("UserSelected Repo")
 	r.ParseForm()
-	// r.Form is now either
-	// map[animalselect:[cats]] OR
-	// map[animalselect:[dogs]]
-	// so get the animal which has been selected
+
 	selectedRepoName := r.Form.Get("RepoName")
 
-	Title := "Your preferred Repo Name"
+	Title := "Your selected Repo Name"
 	MyPageVariables := PageVariables{
 		PageTitle: Title,
 		Answer:    selectedRepoName,
